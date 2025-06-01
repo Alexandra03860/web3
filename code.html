@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Traductor por Voz a Español con Voz</title>
+<style>
+  /* Reset and base */
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff;
+    display: flex;
+    min-height: 100vh;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    flex-direction: column;
+  }
+
+  h1 {
+    font-weight: 700;
+    font-size: 2.8rem;
+    margin-bottom: 0.3em;
+    text-align: center;
+  }
+
+  p.subtitle {
+    font-size: 1.1rem;
+    margin: 0 0 1.8rem 0;
+    color: #d1d5db;
+    text-align: center;
+    max-width: 400px;
+  }
+
+  .translator-container {
+    background: rgba(255 255 255 / 0.1);
+    border-radius: 15px;
+    padding: 25px 30px;
+    max-width: 450px;
+    width: 100%;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+    backdrop-filter: blur(10px);
+  }
+
+  button#startStopBtn {
+    width: 100%;
+    background: #9f7aea;
+    border: none;
+    border-radius: 30px;
+    padding: 16px 0;
+    font-size: 1.3rem;
+    font-weight: 600;
+    cursor: pointer;
+    color: white;
+    box-shadow: 0 8px 15px rgba(159, 122, 234, 0.4);
+    transition: background-color 0.3s ease;
+    user-select: none;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+  }
+
+  button#startStopBtn:hover {
+    background: #7c3aed;
+  }
+
+  button#startStopBtn:active {
+    background: #5b21b6;
+  }
+
+  .mic-icon {
+    width: 22px;
+    height: 22px;
+    fill: white;
+    animation: pulse 1.5s infinite ease-in-out;
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+    50% {
+      transform: scale(1.2);
+      opacity: 0.7;
+    }
+  }
+
+  .output-section {
+    margin-top: 20px;
+  }
+
+  .output-label {
+    font-weight: 600;
+    margin-bottom: 5px;
+    font-size: 1.05rem;
+    color: #e0d7f5;
+  }
+
+  .output-text {
+    background: rgba(0,0,0,0.2);
+    border-radius: 10px;
+    padding: 14px 16px;
+    word-wrap: break-word;
+    min-height: 48px;
+    font-size: 1.15rem;
+    font-weight: 500;
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  }
+
+  .language-info {
+    text-align: center;
+    margin-top: 15px;
+    font-weight: 600;
+    font-size: 1rem;
+    color: #c4b5fd;
+  }
+
+  .speaking-info {
+    margin-top: 10px;
+    text-align: center;
+    font-style: italic;
+    color: #a3a0fd;
+    font-weight: 600;
+  }
+
+  .error-message {
+    margin-top: 20px;
+    background: #f87171;
+    color: white;
+    padding: 12px 15px;
+    border-radius: 12px;
+    text-align: center;
+    font-weight: 600;
+    box-shadow: 0 0 10px #f87171a1;
+    user-select: none;
+  }
+
+  @media (max-width: 480px) {
+    .translator-container {
+      padding: 20px 20px;
+      max-width: 100%;
+    }
+
+    h1 {
+      font-size: 2rem;
+    }
+    button#startStopBtn {
+      font-size: 1.1rem;
+      padding: 14px 0;
+    }
+  }
+</style>
+</head>
+<body>
+  <h1>Traductor por Voz a Español con Voz</h1>
+  <p class="subtitle">Habla en cualquier idioma, y te lo traduciremos automáticamente al español, además te lo leeremos en voz alta.</p>
+  <div class="translator-container">
+    <button id="startStopBtn" aria-label="Iniciar reconocimiento de voz">
+      <svg class="mic-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 14a3 3 0 003-3V5a3 3 0 10-6 0v6a3 3 0 003 3z"/>
+        <path d="M19 10v1a7 7 0 01-14 0v-1"/>
+        <path d="M12 19v4"/>
+        <path d="M8 23h8"/>
+      </svg>
+      <span id="btnText">Iniciar</span>
+    </button>
+    <div class="language-info" id="languageInfo"></div>
+
+    <div class="output-section">
+      <div class="output-label">Texto detectado:</div>
+      <div class="output-text" id="detectedText">-</div>
+    </div>
+
+    <div class="output-section">
+      <div class="output-label">Traducción al español:</div>
+      <div class="output-text" id="translatedText">-</div>
+    </div>
+
+    <div class="speaking-info" id="speakingInfo" aria-live="polite"></div>
+
+    <div class="error-message" id="errorMessage" style="display:none;"></div>
+  </div>
+
+<script>
+  (() => {
+    const btn = document.getElementById('startStopBtn');
+    const btnText = document.getElementById('btnText');
+    const detectedTextEl = document.getElementById('detectedText');
+    const translatedTextEl = document.getElementById('translatedText');
+    const languageInfoEl = document.getElementById('languageInfo');
+    const errorMessageEl = document.getElementById('errorMessage');
+    const speakingInfoEl = document.getElementById('speakingInfo');
+    let recognition;
+    let recognizing = false;
+
+    // Check for browser compatibility
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      alert('Tu navegador no soporta el reconocimiento de voz. Por favor usa Chrome o Edge.');
+      btn.disabled = true;
+      return;
+    }
+
+    if (!('speechSynthesis' in window)) {
+      alert('Tu navegador no soporta la síntesis de voz. Por favor usa Chrome o Edge.');
+      btn.disabled = true;
+      return;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    recognition.interimResults = false;
+    recognition.continuous = false;
+    recognition.lang = ''; // auto
+
+    function startRecognition() {
+      detectedTextEl.textContent = '-';
+      translatedTextEl.textContent = '-';
+      languageInfoEl.textContent = '';
+      errorMessageEl.style.display = 'none';
+      errorMessageEl.textContent = '';
+      speakingInfoEl.textContent = '';
+      recognition.start();
+      recognizing = true;
+      btnText.textContent = 'Detener';
+      btn.setAttribute('aria-label', 'Detener reconocimiento de voz');
+    }
+
+    function stopRecognition() {
+      recognition.stop();
+      recognizing = false;
+      btnText.textContent = 'Iniciar';
+      btn.setAttribute('aria-label', 'Iniciar reconocimiento de voz');
+    }
+
+    btn.addEventListener('click', () => {
+      if (recognizing) {
+        stopRecognition();
+      } else {
+        startRecognition();
+      }
+    });
+
+    recognition.onstart = () => {
+      // maybe show some UI indication if needed
+    };
+
+    recognition.onend = () => {
+      recognizing = false;
+      btnText.textContent = 'Iniciar';
+      btn.setAttribute('aria-label', 'Iniciar reconocimiento de voz');
+    };
+
+    recognition.onerror = event => {
+      recognizing = false;
+      btnText.textContent = 'Iniciar';
+      btn.setAttribute('aria-label', 'Iniciar reconocimiento de voz');
+      let msg = '';
+      switch(event.error){
+        case 'no-speech': msg = 'No se detectó voz. Por favor intenta de nuevo.'; break;
+        case 'audio-capture': msg = 'No se pudo acceder al micrófono.'; break;
+        case 'not-allowed': msg = 'Permiso denegado para usar el micrófono.'; break;
+        default: msg = 'Error en el reconocimiento: ' + event.error; break;
+      }
+      errorMessageEl.textContent = msg;
+      errorMessageEl.style.display = 'block';
+      speakingInfoEl.textContent = '';
+    };
+
+    recognition.onresult = event => {
+      if (!event.results || event.results.length === 0) {
+        errorMessageEl.textContent = 'No se reconoció ninguna voz.';
+        errorMessageEl.style.display = 'block';
+        speakingInfoEl.textContent = '';
+        return;
+      }
+      errorMessageEl.style.display = 'none';
+      const result = event.results[0][0];
+      const transcript = result.transcript;
+      detectedTextEl.textContent = transcript;
+
+      // Update language info based on recognition.lang
+      const detectedLangCode = recognition.lang || 'desconocido';
+      languageInfoEl.textContent = "Idioma detectado (aprox): " + detectedLangCode;
+
+      // Translate the text using LibreTranslate public API (free and supports CORS)
+      fetch('https://libretranslate.de/translate', {
+        method: 'POST',
+        body: JSON.stringify({
+          q: transcript,
+          source: 'auto',
+          target: 'es',
+          format: 'text'
+        }),
+        headers: { 'Content-Type': 'application/json' }
+      }).then(res => {
+        if (!res.ok) {
+          throw new Error('Error en la traducción');
+        }
+        return res.json();
+      }).then(data => {
+        if (data && data.translatedText) {
+          translatedTextEl.textContent = data.translatedText;
+          speakText(data.translatedText);
+        } else {
+          translatedTextEl.textContent = 'No se pudo traducir.';
+          speakingInfoEl.textContent = '';
+        }
+      }).catch(err => {
+        translatedTextEl.textContent = 'Error en la traducción.';
+        errorMessageEl.textContent = err.message;
+        errorMessageEl.style.display = 'block';
+        speakingInfoEl.textContent = '';
+      });
+    };
+
+    // Synthesize speech in Spanish
+    function speakText(text) {
+      if (!text) return;
+      if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+      }
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      // Select Spanish voice if available
+      const voices = window.speechSynthesis.getVoices();
+      let spanishVoice = voices.find(v => v.lang.startsWith('es'));
+      // If multiple Spanish voices, pick preferred female or first found
+      if (!spanishVoice) {
+        spanishVoice = voices[0] || null;
+      }
+      if (spanishVoice) {
+        utterance.voice = spanishVoice;
+      }
+      utterance.lang = 'es-ES';
+      speakingInfoEl.textContent = 'Leyendo traducción en voz alta...';
+
+      utterance.onend = () => {
+        speakingInfoEl.textContent = '';
+      };
+
+      utterance.onerror = e => {
+        speakingInfoEl.textContent = 'Error en la síntesis de voz.';
+      };
+
+      window.speechSynthesis.speak(utterance);
+    }
+
+    // Load voices - some browsers require this to load voices asynchronously
+    if (typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
+      speechSynthesis.onvoiceschanged = () => {
+        // Preload voices, no direct action needed here
+      };
+    }
+  })();
+</script>
+</body>
+</html>
+
